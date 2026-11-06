@@ -3,8 +3,13 @@ package com.santi.mucom88
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
+import android.text.InputFilter
+import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -38,64 +43,74 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
     private val algo = AlgorithmView(ctx)
     private val editLabel = TextView(ctx)
     private val seek = SeekBar(ctx)
+    private val nameEdit = EditText(ctx)
     private var selRow = 0
     private var selCol = 0
+
+    private val root = LinearLayout(ctx)
+    private val leftBox = LinearLayout(ctx)
+    private val rightBox = LinearLayout(ctx)
+    private val body = LinearLayout(ctx)
+    private val bodyLp = LinearLayout.LayoutParams(MATCH, 0)
+    private val sized = ArrayList<Pair<View, LinearLayout.LayoutParams>>()
+    private var landscape = false
 
     init {
         setBackgroundColor(C.NAVY)
         isFillViewport = true
 
-        val root = LinearLayout(context)
         root.orientation = LinearLayout.VERTICAL
         root.setPadding(context.dp(10), context.dp(8), context.dp(10), context.dp(8))
         addView(root, FrameLayout.LayoutParams(MATCH, WRAP))
+
+        leftBox.orientation = LinearLayout.VERTICAL
+        rightBox.orientation = LinearLayout.VERTICAL
+        root.addView(leftBox, LinearLayout.LayoutParams(MATCH, WRAP))
+        root.addView(rightBox, LinearLayout.LayoutParams(MATCH, WRAP))
 
         val title = TextView(context)
         title.text = "FM Parameters"
         title.setTextColor(Color.WHITE)
         title.textSize = 14f
         title.typeface = Typeface.MONOSPACE
-        root.addView(title, LinearLayout.LayoutParams(MATCH, WRAP))
+        leftBox.addView(title, LinearLayout.LayoutParams(MATCH, WRAP))
 
         val hint = TextView(context)
         hint.text = "desliza a la derecha › para volver al editor"
         hint.setTextColor(C.MUTED)
         hint.textSize = 11f
         hint.setPadding(0, 0, 0, context.dp(6))
-        root.addView(hint, LinearLayout.LayoutParams(MATCH, WRAP))
-
-        val rowH = context.dp(28)
+        leftBox.addView(hint, LinearLayout.LayoutParams(MATCH, WRAP))
 
         val left = LinearLayout(context)
         left.orientation = LinearLayout.VERTICAL
-        left.addView(headerRow(), LinearLayout.LayoutParams(MATCH, rowH))
-        for (r in 0 until 10) left.addView(makeRow(r), LinearLayout.LayoutParams(MATCH, rowH))
+        addSized(left, headerRow())
+        for (r in 0 until 10) addSized(left, makeRow(r))
 
         val right = LinearLayout(context)
         right.orientation = LinearLayout.VERTICAL
-        right.addView(View(context), LinearLayout.LayoutParams(MATCH, rowH))
+        addSized(right, View(context))
         for (e in envs) {
             val lp = LinearLayout.LayoutParams(MATCH, 0, 1f)
             lp.setMargins(context.dp(6), 0, 0, context.dp(2))
             right.addView(e, lp)
         }
 
-        val body = LinearLayout(context)
         body.orientation = LinearLayout.HORIZONTAL
         body.addView(left, LinearLayout.LayoutParams(0, MATCH, 2f))
         body.addView(right, LinearLayout.LayoutParams(0, MATCH, 1f))
-        root.addView(body, LinearLayout.LayoutParams(MATCH, rowH * 11))
+        leftBox.addView(body, bodyLp)
 
         val algoLp = LinearLayout.LayoutParams(MATCH, context.dp(84))
         algoLp.topMargin = context.dp(8)
-        root.addView(algo, algoLp)
+        rightBox.addView(algo, algoLp)
 
         editLabel.setTextColor(Color.WHITE)
         editLabel.textSize = 12f
         editLabel.typeface = Typeface.MONOSPACE
         val labLp = LinearLayout.LayoutParams(MATCH, WRAP)
         labLp.topMargin = context.dp(10)
-        root.addView(editLabel, labLp)
+        rightBox.addView(editLabel, labLp)
 
         val ctl = LinearLayout(context)
         ctl.orientation = LinearLayout.HORIZONTAL
@@ -103,7 +118,7 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
         ctl.addView(context.pillButton("−", C.GREEN) { bump(-1) }, LinearLayout.LayoutParams(context.dp(44), WRAP))
         ctl.addView(seek, LinearLayout.LayoutParams(0, WRAP, 1f))
         ctl.addView(context.pillButton("+", C.GREEN) { bump(1) }, LinearLayout.LayoutParams(context.dp(44), WRAP))
-        root.addView(ctl, LinearLayout.LayoutParams(MATCH, WRAP))
+        rightBox.addView(ctl, LinearLayout.LayoutParams(MATCH, WRAP))
 
         seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -118,16 +133,93 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
 
-        val info = TextView(context)
-        info.text = "ToneNo : 0    Name : (sin nombre)    octave : 1"
-        info.setTextColor(C.MUTED)
-        info.textSize = 11f
-        info.typeface = Typeface.MONOSPACE
+        val info = LinearLayout(context)
+        info.orientation = LinearLayout.HORIZONTAL
+        info.gravity = Gravity.CENTER_VERTICAL
+
+        val toneNo = TextView(context)
+        toneNo.text = "ToneNo : 0"
+        toneNo.setTextColor(C.MUTED)
+        toneNo.textSize = 11f
+        toneNo.typeface = Typeface.MONOSPACE
+        info.addView(toneNo, LinearLayout.LayoutParams(WRAP, WRAP))
+
+        val nameLabel = TextView(context)
+        nameLabel.text = "Name :"
+        nameLabel.setTextColor(C.MUTED)
+        nameLabel.textSize = 11f
+        nameLabel.typeface = Typeface.MONOSPACE
+        val nameLabelLp = LinearLayout.LayoutParams(WRAP, WRAP)
+        nameLabelLp.leftMargin = context.dp(14)
+        nameLabelLp.rightMargin = context.dp(6)
+        info.addView(nameLabel, nameLabelLp)
+
+        nameEdit.hint = "(sin nombre)"
+        nameEdit.setHintTextColor(C.MUTED)
+        nameEdit.setTextColor(Color.WHITE)
+        nameEdit.textSize = 12f
+        nameEdit.typeface = Typeface.MONOSPACE
+        nameEdit.setSingleLine(true)
+        nameEdit.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        nameEdit.imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+        nameEdit.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(16))
+        nameEdit.background = roundBg(0xFF10106A.toInt(), context.dpf(4f))
+        nameEdit.setPadding(context.dp(8), context.dp(6), context.dp(8), context.dp(6))
+        nameEdit.setOnEditorActionListener { v, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                v.clearFocus()
+                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(v.windowToken, 0)
+                true
+            } else {
+                false
+            }
+        }
+        info.addView(nameEdit, LinearLayout.LayoutParams(0, WRAP, 1f))
+
         val infoLp = LinearLayout.LayoutParams(MATCH, WRAP)
         infoLp.topMargin = context.dp(10)
-        root.addView(info, infoLp)
+        rightBox.addView(info, infoLp)
 
+        applyLayout()
         refresh()
+    }
+
+    private fun addSized(parent: LinearLayout, v: View) {
+        val lp = LinearLayout.LayoutParams(MATCH, 0)
+        sized.add(Pair(v, lp))
+        parent.addView(v, lp)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val land = w > h
+        if (land != landscape) {
+            landscape = land
+            post { applyLayout() }
+        }
+    }
+
+    private fun applyLayout() {
+        val rowH = context.dp(if (landscape) 22 else 28)
+        for ((v, lp) in sized) {
+            lp.height = rowH
+            v.layoutParams = lp
+        }
+        bodyLp.height = rowH * 11
+        body.layoutParams = bodyLp
+
+        if (landscape) {
+            root.orientation = LinearLayout.HORIZONTAL
+            leftBox.layoutParams = LinearLayout.LayoutParams(0, WRAP, 1.25f)
+            val lp = LinearLayout.LayoutParams(0, WRAP, 1f)
+            lp.leftMargin = context.dp(12)
+            rightBox.layoutParams = lp
+        } else {
+            root.orientation = LinearLayout.VERTICAL
+            leftBox.layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+            rightBox.layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        }
     }
 
     private fun headerRow(): LinearLayout {

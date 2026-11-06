@@ -5,6 +5,8 @@ Editor y reproductor MML al estilo MUCOM88 para Android (pensado para Samsung J2
 ## Estado
 
 - Día 1: proyecto base e interfaz (editor MML, monitor, teclado, editor de tonos FM). Sin audio todavía.
+- Banco ADPCM por defecto (`mucompcm.bin`) incluido en el APK.
+- Funciona en vertical y horizontal.
 
 ## Interfaz
 

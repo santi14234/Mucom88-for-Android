@@ -10,6 +10,7 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.Gravity
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -25,6 +26,10 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
     private val monitor = TextView(ctx)
     private val keyboard = PianoRowsView(ctx)
     private val tabs = ArrayList<TextView>()
+    private var pcm: PcmBank? = null
+    private val leftCol = LinearLayout(ctx)
+    private val panel = LinearLayout(ctx)
+    private var landscape = false
     private val views = ArrayList<View>()
 
     private val chanRegex = Regex("^[A-K]+(?=\\s)")
@@ -37,14 +42,15 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         val pad = context.dp(8)
         setPadding(pad, pad, pad, 0)
 
-        addView(
+        leftCol.orientation = LinearLayout.VERTICAL
+        leftCol.addView(
             buttonRow(
                 context.pillButton("NUEVO", C.ORANGE) { newFile() },
                 context.pillButton("ABRIR", C.ORANGE) { log("ABRIR: llega en el Día 5") },
                 context.pillButton("GUARDAR", C.ORANGE) { log("GUARDAR: llega en el Día 5") }
             )
         )
-        addView(
+        leftCol.addView(
             buttonRow(
                 context.pillButton("▶ PLAY", C.GREEN) { log("PLAY: el audio llega en el Día 2") },
                 context.pillButton("■ STOP", C.GREEN) { log("STOP: el audio llega en el Día 2") },
@@ -58,7 +64,7 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         hint.textSize = 11f
         hint.gravity = Gravity.END
         hint.setPadding(0, context.dp(2), 0, context.dp(4))
-        addView(hint, LinearLayout.LayoutParams(MATCH, WRAP))
+        leftCol.addView(hint, LinearLayout.LayoutParams(MATCH, WRAP))
 
         editor.setText(TEMPLATE)
         editor.typeface = Typeface.MONOSPACE
@@ -72,9 +78,9 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         editor.setPadding(context.dp(8), context.dp(6), context.dp(8), context.dp(6))
         editor.doAfterTextChanged { e -> if (e != null) highlight(e) }
         highlight(editor.text)
-        addView(editor, LinearLayout.LayoutParams(MATCH, 0, 3f))
+        editor.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI
+        leftCol.addView(editor, LinearLayout.LayoutParams(MATCH, 0, 1f))
 
-        val panel = LinearLayout(context)
         panel.orientation = LinearLayout.VERTICAL
         panel.setBackgroundColor(C.PANEL)
 
@@ -97,6 +103,7 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         console.setTextColor(C.TEXT)
         console.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
         console.text = "MUCOM88 para Android v0.1 (Día 1)\nMotor de audio: pendiente (Días 2 a 4)\n"
+        loadDefaultPcm()
         consoleScroll.addView(console)
 
         monitor.typeface = Typeface.MONOSPACE
@@ -112,9 +119,48 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         val body = FrameLayout(context)
         views.forEach { body.addView(it, FrameLayout.LayoutParams(MATCH, MATCH)) }
         panel.addView(body, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        addView(leftCol, LinearLayout.LayoutParams(MATCH, 0, 3f))
         addView(panel, LinearLayout.LayoutParams(MATCH, 0, 2f))
 
         showTab(0)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val land = w > h
+        if (land != landscape) {
+            landscape = land
+            post { applyOrientation() }
+        }
+    }
+
+    private fun applyOrientation() {
+        val pad = context.dp(8)
+        if (landscape) {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(pad, pad, pad, pad)
+            leftCol.layoutParams = LinearLayout.LayoutParams(0, MATCH, 1.3f)
+            val lp = LinearLayout.LayoutParams(0, MATCH, 1f)
+            lp.leftMargin = pad
+            panel.layoutParams = lp
+        } else {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, 0)
+            leftCol.layoutParams = LinearLayout.LayoutParams(MATCH, 0, 3f)
+            panel.layoutParams = LinearLayout.LayoutParams(MATCH, 0, 2f)
+        }
+    }
+
+    private fun loadDefaultPcm() {
+        try {
+            val bank = PcmBank.loadDefault(context)
+            pcm = bank
+            console.append("ADPCM (canal K): mucompcm.bin cargado (${bank.data.size} bytes, ${bank.names.size} sonidos)\n")
+            console.append(bank.names.mapIndexed { i, n -> "${i + 1}:$n" }.joinToString("  ") + "\n")
+            console.append("mucompcm.bin © Yuzo Koshiro (Ancient Corp.)\n")
+        } catch (e: Exception) {
+            console.append("No se pudo cargar mucompcm.bin: ${e.message}\n")
+        }
     }
 
     private fun buttonRow(vararg buttons: TextView): LinearLayout {

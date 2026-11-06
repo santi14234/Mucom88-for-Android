@@ -15,3 +15,8 @@ Los archivos `voice.dat` y `mucompcm.bin` de ejemplo son de Yuzo Koshiro
 (Ancient Corp.). Si los incluyes, indica: "Copyright (C) by Yuzo Koshiro".
 
 Este proyecto es gratuito y no comercial.
+
+## Archivo incluido en la app
+
+`app/src/main/assets/mucompcm.bin` (15 sonidos de batería ADPCM): Copyright (C) by Yuzo Koshiro.
+Se usa como banco ADPCM por defecto (canal K).
