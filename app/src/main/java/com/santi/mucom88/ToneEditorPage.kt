@@ -101,7 +101,7 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
         body.addView(right, LinearLayout.LayoutParams(0, MATCH, 1f))
         leftBox.addView(body, bodyLp)
 
-        val algoLp = LinearLayout.LayoutParams(MATCH, context.dp(84))
+        val algoLp = LinearLayout.LayoutParams(MATCH, context.dp(132))
         algoLp.topMargin = context.dp(8)
         rightBox.addView(algo, algoLp)
 

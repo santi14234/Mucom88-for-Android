@@ -25,6 +25,8 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
     private val consoleScroll = ScrollView(ctx)
     private val monitor = TextView(ctx)
     private val keyboard = PianoRowsView(ctx)
+    private val pcmText = TextView(ctx)
+    private val pcmScroll = ScrollView(ctx)
     private val tabs = ArrayList<TextView>()
     private var pcm: PcmBank? = null
     private val leftCol = LinearLayout(ctx)
@@ -86,10 +88,10 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
 
         val tabRow = LinearLayout(context)
         tabRow.orientation = LinearLayout.HORIZONTAL
-        listOf("CONSOLA", "MONITOR", "TECLADO").forEachIndexed { i, name ->
+        listOf("CONSOLA", "MONITOR", "TECLADO", "ADPCM").forEachIndexed { i, name ->
             val t = TextView(context)
             t.text = name
-            t.textSize = 12f
+            t.textSize = 11f
             t.gravity = Gravity.CENTER
             t.setPadding(0, context.dp(8), 0, context.dp(8))
             t.setOnClickListener { showTab(i) }
@@ -112,9 +114,16 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         monitor.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
         monitor.text = buildMonitor()
 
+        pcmText.typeface = Typeface.MONOSPACE
+        pcmText.textSize = 11f
+        pcmText.setTextColor(C.TEXT)
+        pcmText.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
+        pcmScroll.addView(pcmText)
+
         views.add(consoleScroll)
         views.add(monitor)
         views.add(keyboard)
+        views.add(pcmScroll)
 
         val body = FrameLayout(context)
         views.forEach { body.addView(it, FrameLayout.LayoutParams(MATCH, MATCH)) }
@@ -155,11 +164,16 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         try {
             val bank = PcmBank.loadDefault(context)
             pcm = bank
-            console.append("ADPCM (canal K): mucompcm.bin cargado (${bank.data.size} bytes, ${bank.names.size} sonidos)\n")
-            console.append(bank.names.mapIndexed { i, n -> "${i + 1}:$n" }.joinToString("  ") + "\n")
-            console.append("mucompcm.bin © Yuzo Koshiro (Ancient Corp.)\n")
+            console.append("ADPCM: mucompcm.bin cargado (${bank.names.size} sonidos). Ver pestaña ADPCM.\n")
+            val sb = StringBuilder()
+            sb.append("Canal K (ADPCM)\n")
+            sb.append("mucompcm.bin · ${bank.data.size} bytes\n\n")
+            bank.names.forEachIndexed { i, n -> sb.append(String.format("%2d  %s\n", i + 1, n)) }
+            sb.append("\n© Yuzo Koshiro (Ancient Corp.)\n")
+            pcmText.text = sb.toString()
         } catch (e: Exception) {
             console.append("No se pudo cargar mucompcm.bin: ${e.message}\n")
+            pcmText.text = "Sin banco ADPCM"
         }
     }
 
