@@ -1,6 +1,6 @@
 # Mucom88-for-Android
 
-Editor y reproductor MML al estilo MUCOM88 para Android (pensado para Samsung J260M, Android 8.1).
+Editor y reproductor MML al estilo MUCOM88 para Android
 
 ## Estado
 
