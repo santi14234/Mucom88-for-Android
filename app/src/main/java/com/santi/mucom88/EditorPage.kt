@@ -35,8 +35,15 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
     private val views = ArrayList<View>()
 
     private val chanRegex = Regex("^[A-K]+(?=\\s)")
-    private val toneRegex = Regex("@\\d+")
-    private val bracketRegex = Regex("[\\[\\]()]")
+    private val macroDefRegex = Regex("^#\\s*\\*\\d+\\s*\\{")
+    private val tokenRegex = Regex(
+        "(@(?:%\\d+|\"[^\"]*\"|\\d+))" +
+            "|(\\*\\d+|[\\\\¥]=?[\\d,]*)" +
+            "|((?:yDM|yTL|yKA|yDR|ySR|ySL|ySE|MF|MW|MC|ML|MD|RF|Rm|vm|[tTCovVqplDKkHRMEPwySsmJL])" +
+            "(?:\\$[0-9A-Fa-f]+|[\\d,+\\-])*)" +
+            "|([<>])" +
+            "|([\\[\\]()/&^{}])"
+    )
 
     init {
         orientation = LinearLayout.VERTICAL
@@ -69,7 +76,7 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         leftCol.addView(hint, LinearLayout.LayoutParams(MATCH, WRAP))
 
         editor.setText(TEMPLATE)
-        editor.typeface = Typeface.MONOSPACE
+        editor.typeface = Fonts.mono
         editor.textSize = 13f
         editor.setTextColor(C.TEXT)
         editor.setBackgroundColor(C.EDITOR_BG)
@@ -100,7 +107,7 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         }
         panel.addView(tabRow, LinearLayout.LayoutParams(MATCH, WRAP))
 
-        console.typeface = Typeface.MONOSPACE
+        console.typeface = Fonts.mono
         console.textSize = 11f
         console.setTextColor(C.TEXT)
         console.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
@@ -108,13 +115,13 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         loadDefaultPcm()
         consoleScroll.addView(console)
 
-        monitor.typeface = Typeface.MONOSPACE
+        monitor.typeface = Fonts.mono
         monitor.textSize = 11f
         monitor.setTextColor(C.TEXT)
         monitor.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
         monitor.text = buildMonitor()
 
-        pcmText.typeface = Typeface.MONOSPACE
+        pcmText.typeface = Fonts.mono
         pcmText.textSize = 11f
         pcmText.setTextColor(C.TEXT)
         pcmText.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
@@ -210,21 +217,43 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
     }
 
     private fun highlight(e: Editable) {
-        for (s in e.getSpans(0, e.length, ForegroundColorSpan::class.java)) e.removeSpan(s)
+        for (sp in e.getSpans(0, e.length, ForegroundColorSpan::class.java)) e.removeSpan(sp)
         var pos = 0
         for (line in e.toString().split("\n")) {
             val s = pos
-            when {
-                line.startsWith("#") -> paint(e, s, s + line.length, C.YELLOW)
-                line.startsWith(";") -> paint(e, s, s + line.length, C.MUTED)
-                else -> {
-                    chanRegex.find(line)?.let { paint(e, s, s + it.range.last + 1, C.CH_GREEN) }
-                    toneRegex.findAll(line).forEach {
-                        paint(e, s + it.range.first, s + it.range.last + 1, C.TONE)
+            val semi = line.indexOf(';')
+            val codeEnd = if (semi >= 0) semi else line.length
+            if (semi >= 0) paint(e, s + semi, s + line.length, C.MUTED)
+            val code = line.substring(0, codeEnd)
+
+            var from = 0
+            if (code.startsWith("#")) {
+                val m = macroDefRegex.find(code)
+                if (m != null) {
+                    paint(e, s, s + m.range.last + 1, C.MACRO)
+                    from = m.range.last + 1
+                } else {
+                    paint(e, s, s + codeEnd, C.YELLOW)
+                    from = codeEnd
+                }
+            } else {
+                val ch = chanRegex.find(code)
+                if (ch != null) {
+                    paint(e, s, s + ch.range.last + 1, C.CH_GREEN)
+                    from = ch.range.last + 1
+                }
+            }
+
+            if (from < codeEnd) {
+                for (m in tokenRegex.findAll(code.substring(from))) {
+                    val color = when {
+                        m.groups[1] != null -> C.TONE
+                        m.groups[2] != null -> C.MACRO
+                        m.groups[3] != null -> C.CMD
+                        m.groups[4] != null -> C.CMD
+                        else -> C.BRACKET
                     }
-                    bracketRegex.findAll(line).forEach {
-                        paint(e, s + it.range.first, s + it.range.last + 1, C.BRACKET)
-                    }
+                    paint(e, s + from + m.range.first, s + from + m.range.last + 1, color)
                 }
             }
             pos += line.length + 1

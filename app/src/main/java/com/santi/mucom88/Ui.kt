@@ -27,6 +27,8 @@ object C {
     val CH_GREEN = 0xFF5DCAA5.toInt()
     val TONE = 0xFFF0997B.toInt()
     val BRACKET = 0xFF85B7EB.toInt()
+    val CMD = 0xFF7DCFE8.toInt()
+    val MACRO = 0xFFC792EA.toInt()
     val CYAN = 0xFF22C7E8.toInt()
     val AMBER = 0xFFF0A800.toInt()
     val ROW_WHITE = 0xFFDDDDDD.toInt()

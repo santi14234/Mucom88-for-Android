@@ -20,13 +20,14 @@ class PcmBank(val data: ByteArray, val names: List<String>) {
                 var ok = true
                 for (k in 0 until 16) {
                     val b = d[base + k].toInt() and 0xFF
-                    if (b < 0x20 || b > 0x7E) {
+                    val printable = (b in 0x20..0x7E) || b >= 0xA1
+                    if (!printable) {
                         ok = false
                         break
                     }
                 }
                 if (!ok) break
-                out.add(String(d, base, 16, Charsets.US_ASCII).trim())
+                out.add(String(d, base, 16, charset("Shift_JIS")).trim())
                 i++
             }
             return out

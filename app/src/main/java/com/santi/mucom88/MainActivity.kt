@@ -10,6 +10,7 @@ import androidx.viewpager2.widget.ViewPager2
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Fonts.init(this)
         val pager = ViewPager2(this)
         pager.adapter = PageAdapter()
         pager.offscreenPageLimit = 1

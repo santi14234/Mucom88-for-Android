@@ -72,7 +72,7 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
         title.text = "FM Parameters"
         title.setTextColor(Color.WHITE)
         title.textSize = 14f
-        title.typeface = Typeface.MONOSPACE
+        title.typeface = Fonts.mono
         leftBox.addView(title, LinearLayout.LayoutParams(MATCH, WRAP))
 
         val hint = TextView(context)
@@ -107,7 +107,7 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
 
         editLabel.setTextColor(Color.WHITE)
         editLabel.textSize = 12f
-        editLabel.typeface = Typeface.MONOSPACE
+        editLabel.typeface = Fonts.mono
         val labLp = LinearLayout.LayoutParams(MATCH, WRAP)
         labLp.topMargin = context.dp(10)
         rightBox.addView(editLabel, labLp)
@@ -141,14 +141,14 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
         toneNo.text = "ToneNo : 0"
         toneNo.setTextColor(C.MUTED)
         toneNo.textSize = 11f
-        toneNo.typeface = Typeface.MONOSPACE
+        toneNo.typeface = Fonts.mono
         info.addView(toneNo, LinearLayout.LayoutParams(WRAP, WRAP))
 
         val nameLabel = TextView(context)
         nameLabel.text = "Name :"
         nameLabel.setTextColor(C.MUTED)
         nameLabel.textSize = 11f
-        nameLabel.typeface = Typeface.MONOSPACE
+        nameLabel.typeface = Fonts.mono
         val nameLabelLp = LinearLayout.LayoutParams(WRAP, WRAP)
         nameLabelLp.leftMargin = context.dp(14)
         nameLabelLp.rightMargin = context.dp(6)
@@ -158,7 +158,7 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
         nameEdit.setHintTextColor(C.MUTED)
         nameEdit.setTextColor(Color.WHITE)
         nameEdit.textSize = 12f
-        nameEdit.typeface = Typeface.MONOSPACE
+        nameEdit.typeface = Fonts.mono
         nameEdit.setSingleLine(true)
         nameEdit.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         nameEdit.imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI
@@ -231,7 +231,7 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
             tv.text = "OP${c + 1}"
             tv.setTextColor(Color.WHITE)
             tv.textSize = 11f
-            tv.typeface = Typeface.MONOSPACE
+            tv.typeface = Fonts.mono
             tv.gravity = Gravity.CENTER
             colHeads[c] = tv
             row.addView(tv, LinearLayout.LayoutParams(0, MATCH, 1f))
@@ -247,7 +247,7 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
         lab.text = names[r]
         lab.setTextColor(Color.WHITE)
         lab.textSize = 11f
-        lab.typeface = Typeface.MONOSPACE
+        lab.typeface = Fonts.mono
         lab.gravity = Gravity.CENTER_VERTICAL
         lab.setSingleLine(true)
         rowLabels[r] = lab
@@ -257,7 +257,7 @@ class ToneEditorPage(ctx: Context) : ScrollView(ctx) {
             val cell = TextView(context)
             cell.setTextColor(Color.WHITE)
             cell.textSize = 12f
-            cell.typeface = Typeface.MONOSPACE
+            cell.typeface = Fonts.mono
             cell.gravity = Gravity.CENTER
             cell.setOnClickListener { select(r, c) }
             cells[r][c] = cell

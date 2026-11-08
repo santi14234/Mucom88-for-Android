@@ -27,7 +27,7 @@ class EnvelopeView(ctx: Context, private val label: String) : View(ctx) {
         color = 0xFFFFB347.toInt()
         textSize = ctx.spf(11f)
         textAlign = Paint.Align.RIGHT
-        typeface = Typeface.MONOSPACE
+        typeface = Fonts.mono
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -113,7 +113,7 @@ class AlgorithmView(ctx: Context) : View(ctx) {
         color = Color.WHITE
         textSize = ctx.spf(11f)
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.MONOSPACE
+        typeface = Fonts.mono
     }
 
     private fun arrowHead(c: Canvas, x: Float, y: Float, s: Float) {
@@ -220,7 +220,7 @@ class PianoRowsView(ctx: Context) : View(ctx) {
     private val black = Paint().apply { color = 0xFF111111.toInt() }
     private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = ctx.spf(11f)
-        typeface = Typeface.MONOSPACE
+        typeface = Fonts.mono
         isFakeBoldText = true
     }
     private val blackKeys = intArrayOf(0, 1, 3, 4, 5)

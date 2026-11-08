@@ -16,3 +16,13 @@ Editor y reproductor MML al estilo MUCOM88 para Android (pensado para Samsung J2
 ## Compilar
 
 Cada `push` a `main` ejecuta GitHub Actions. El APK queda en Actions > último run > Artifacts.
+
+## Fuente del editor
+
+El workflow baja la fuente a `app/src/main/assets/fonts/editor.ttf` antes de compilar.
+Para usar otra fuente, cambia la URL en `.github/workflows/build.yml` o sube tu propio `editor.ttf` a esa carpeta.
+
+## Resaltado MML
+
+Colores según la referencia de MUCOM88: directivas `#`, pistas A-K, tonos `@`, comandos (t, T, C, o, v, q, p, l, D, K, M, E, y...),
+octavas `< >`, bucles y volumen relativo, macros `*n` y comentarios `;`.
