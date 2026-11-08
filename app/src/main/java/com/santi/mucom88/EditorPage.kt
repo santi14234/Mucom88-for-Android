@@ -10,6 +10,10 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.Gravity
 import android.view.View
+import android.text.InputFilter
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import androidx.appcompat.app.AlertDialog
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -25,8 +29,10 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
     private val consoleScroll = ScrollView(ctx)
     private val monitor = TextView(ctx)
     private val keyboard = PianoRowsView(ctx)
-    private val pcmText = TextView(ctx)
-    private val pcmScroll = ScrollView(ctx)
+    private val pcmPanel = LinearLayout(ctx)
+    private val pcmInfo = TextView(ctx)
+    private val pcmListScroll = ScrollView(ctx)
+    private val pcmList = LinearLayout(ctx)
     private val tabs = ArrayList<TextView>()
     private var pcm: PcmBank? = null
     private val leftCol = LinearLayout(ctx)
@@ -61,8 +67,8 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         )
         leftCol.addView(
             buttonRow(
-                context.pillButton("▶ PLAY", C.GREEN) { log("PLAY: el audio llega en el Día 2") },
-                context.pillButton("■ STOP", C.GREEN) { log("STOP: el audio llega en el Día 2") },
+                context.pillButton("▶ PLAY", C.GREEN) { log("PLAY: la música llega cuando conectemos el chip FM (Día 3-4)") },
+                context.pillButton("■ STOP", C.GREEN) { log("STOP: sin música todavía (Día 3-4)") },
                 context.pillButton("COMPILAR", C.GREEN) { log("COMPILAR: llega en el Día 4") }
             )
         )
@@ -111,7 +117,7 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         console.textSize = 11f
         console.setTextColor(C.TEXT)
         console.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
-        console.text = "MUCOM88 para Android v0.1 (Día 1)\nMotor de audio: pendiente (Días 2 a 4)\n"
+        console.text = "MUCOM88 para Android v0.2 (Día 2)\nConversor de muestras WAV listo. Chip FM y compilador: Días 3 y 4\n"
         loadDefaultPcm()
         consoleScroll.addView(console)
 
@@ -121,16 +127,12 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         monitor.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
         monitor.text = buildMonitor()
 
-        pcmText.typeface = Fonts.mono
-        pcmText.textSize = 11f
-        pcmText.setTextColor(C.TEXT)
-        pcmText.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
-        pcmScroll.addView(pcmText)
+        buildPcmPanel()
 
         views.add(consoleScroll)
         views.add(monitor)
         views.add(keyboard)
-        views.add(pcmScroll)
+        views.add(pcmPanel)
 
         val body = FrameLayout(context)
         views.forEach { body.addView(it, FrameLayout.LayoutParams(MATCH, MATCH)) }
@@ -171,16 +173,206 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         try {
             val bank = PcmBank.loadDefault(context)
             pcm = bank
-            console.append("ADPCM: mucompcm.bin cargado (${bank.names.size} sonidos). Ver pestaña ADPCM.\n")
-            val sb = StringBuilder()
-            sb.append("Canal K (ADPCM)\n")
-            sb.append("mucompcm.bin · ${bank.data.size} bytes\n\n")
-            bank.names.forEachIndexed { i, n -> sb.append(String.format("%2d  %s\n", i + 1, n)) }
-            sb.append("\n© Yuzo Koshiro (Ancient Corp.)\n")
-            pcmText.text = sb.toString()
+            console.append("ADPCM: mucompcm.bin cargado (${bank.entries.size} sonidos). Ver pestaña ADPCM.\n")
+            refreshPcmUi()
         } catch (e: Exception) {
             console.append("No se pudo cargar mucompcm.bin: ${e.message}\n")
-            pcmText.text = "Sin banco ADPCM"
+        }
+    }
+
+    private fun buildPcmPanel() {
+        pcmPanel.orientation = LinearLayout.VERTICAL
+
+        val row = LinearLayout(context)
+        row.orientation = LinearLayout.HORIZONTAL
+        val bs = listOf(
+            context.pillButton("+ WAV", C.ORANGE) { addWav() },
+            context.pillButton("CARGAR", C.ORANGE) { loadBank() },
+            context.pillButton("GUARDAR", C.ORANGE) { saveBank() }
+        )
+        for (b in bs) {
+            b.setPadding(context.dp(4), context.dp(7), context.dp(4), context.dp(7))
+            val lp = LinearLayout.LayoutParams(0, WRAP, 1f)
+            lp.setMargins(context.dp(3), context.dp(3), context.dp(3), context.dp(3))
+            row.addView(b, lp)
+        }
+        pcmPanel.addView(row, LinearLayout.LayoutParams(MATCH, WRAP))
+
+        pcmInfo.typeface = Fonts.mono
+        pcmInfo.textSize = 11f
+        pcmInfo.setTextColor(C.MUTED)
+        pcmInfo.setPadding(context.dp(8), context.dp(2), context.dp(8), context.dp(2))
+        pcmPanel.addView(pcmInfo, LinearLayout.LayoutParams(MATCH, WRAP))
+
+        pcmList.orientation = LinearLayout.VERTICAL
+        pcmListScroll.addView(pcmList)
+        pcmPanel.addView(pcmListScroll, LinearLayout.LayoutParams(MATCH, 0, 1f))
+    }
+
+    private fun refreshPcmUi() {
+        val bank = pcm ?: return
+        pcmList.removeAllViews()
+        bank.entries.forEachIndexed { i, e ->
+            val row = LinearLayout(context)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.gravity = Gravity.CENTER_VERTICAL
+            row.setPadding(context.dp(8), 0, context.dp(4), 0)
+
+            val label = TextView(context)
+            label.typeface = Fonts.mono
+            label.textSize = 11f
+            label.setTextColor(if (e.added) C.CH_GREEN else C.TEXT)
+            label.setSingleLine(true)
+            label.text = String.format("@%-2d %-14s %6d B", i + 1, e.name, e.adpcm.size)
+            row.addView(label, LinearLayout.LayoutParams(0, WRAP, 1f))
+
+            val play = TextView(context)
+            play.text = "▶"
+            play.textSize = 14f
+            play.setTextColor(Color.WHITE)
+            play.setPadding(context.dp(12), context.dp(8), context.dp(12), context.dp(8))
+            play.setOnClickListener { AudioPreview.play(e.adpcm, e.rate) }
+            row.addView(play, LinearLayout.LayoutParams(WRAP, WRAP))
+
+            if (e.added) {
+                val del = TextView(context)
+                del.text = "✕"
+                del.textSize = 14f
+                del.setTextColor(0xFFFF6B6B.toInt())
+                del.setPadding(context.dp(12), context.dp(8), context.dp(12), context.dp(8))
+                del.setOnClickListener {
+                    bank.entries.remove(e)
+                    refreshPcmUi()
+                    log("Quitada: ${e.name}")
+                }
+                row.addView(del, LinearLayout.LayoutParams(WRAP, WRAP))
+            }
+            pcmList.addView(row, LinearLayout.LayoutParams(MATCH, WRAP))
+        }
+        pcmInfo.text = "${bank.entries.size}/${PcmBank.MAX_ENTRIES} muestras · memoria ${bank.usedBytes() / 1024} KB de 256 KB"
+    }
+
+    private fun addWav() {
+        val act = context as? MainActivity ?: return
+        act.openDocument(arrayOf("audio/*", "application/octet-stream")) { uri ->
+            try {
+                val wav = WavReader.read(act.readUri(uri))
+                showAddDialog(wav, act.displayName(uri).take(14))
+            } catch (e: Exception) {
+                log("WAV: ${e.message}")
+            }
+        }
+    }
+
+    private fun showAddDialog(wav: WavData, defaultName: String) {
+        val box = LinearLayout(context)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(context.dp(20), context.dp(8), context.dp(20), context.dp(4))
+
+        val secs = wav.samples.size.toDouble() / wav.rate
+        val info = TextView(context)
+        info.text = String.format("%.2f s · %d Hz · %d muestras", secs, wav.rate, wav.samples.size)
+        info.textSize = 13f
+        info.setTextColor(Color.WHITE)
+        box.addView(info, LinearLayout.LayoutParams(MATCH, WRAP))
+
+        val nameEdit = EditText(context)
+        nameEdit.setText(defaultName)
+        nameEdit.setSingleLine(true)
+        nameEdit.hint = "Nombre (máx. 14)"
+        nameEdit.setTextColor(Color.WHITE)
+        nameEdit.setHintTextColor(C.MUTED)
+        nameEdit.filters = arrayOf<InputFilter>(InputFilter.LengthFilter(14))
+        nameEdit.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI
+        box.addView(nameEdit, LinearLayout.LayoutParams(MATCH, WRAP))
+
+        val options = listOf("Original" to 0, "22 kHz" to 22050, "16 kHz" to 16000, "11 kHz" to 11025)
+        val group = RadioGroup(context)
+        group.orientation = RadioGroup.HORIZONTAL
+        options.forEachIndexed { i, opt ->
+            val rb = RadioButton(context)
+            rb.id = 1000 + i
+            rb.text = opt.first
+            rb.textSize = 12f
+            rb.setTextColor(Color.WHITE)
+            group.addView(rb)
+        }
+        group.check(1000)
+        box.addView(group, LinearLayout.LayoutParams(MATCH, WRAP))
+
+        val hint = TextView(context)
+        hint.text = "Máximo 64 KB por muestra. Si no cabe, baja la frecuencia."
+        hint.textSize = 11f
+        hint.setTextColor(C.MUTED)
+        box.addView(hint, LinearLayout.LayoutParams(MATCH, WRAP))
+
+        val scroll = ScrollView(context)
+        scroll.addView(box)
+
+        AlertDialog.Builder(context)
+            .setTitle("Añadir muestra")
+            .setView(scroll)
+            .setPositiveButton("OK") { _, _ ->
+                val idx = (group.checkedRadioButtonId - 1000).coerceIn(0, options.size - 1)
+                confirmAdd(wav, nameEdit.text.toString(), defaultName, options[idx].second)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun confirmAdd(wav: WavData, typed: String, defaultName: String, targetRate: Int) {
+        val bank = pcm ?: return
+        if (bank.entries.size >= PcmBank.MAX_ENTRIES) {
+            log("Banco lleno: máximo ${PcmBank.MAX_ENTRIES} muestras")
+            return
+        }
+        val name = typed.trim().ifEmpty { defaultName }.take(14)
+        val rate = if (targetRate in 1 until wav.rate) targetRate else wav.rate
+        val shorts = WavReader.resample(wav.samples, wav.rate, rate)
+        val adpcm = AdpcmCodec.encode(shorts)
+        if (adpcm.size > PcmBank.MAX_SAMPLE_BYTES) {
+            log("\"$name\" ocupa ${adpcm.size} B y el máximo por muestra es ${PcmBank.MAX_SAMPLE_BYTES} B. Baja la frecuencia o recorta el WAV.")
+            return
+        }
+        if (bank.usedBytes() + PcmBank.spacing(adpcm.size) > PcmBank.RAM_BYTES) {
+            log("No cabe: la memoria ADPCM es de 256 KB")
+            return
+        }
+        bank.entries.add(PcmEntry(name, PcmBank.newUnk(), adpcm, rate, true))
+        refreshPcmUi()
+        log("Añadida @${bank.entries.size}: $name (${adpcm.size} B, $rate Hz)")
+        AudioPreview.play(adpcm, rate)
+    }
+
+    private fun loadBank() {
+        val act = context as? MainActivity ?: return
+        act.openDocument(arrayOf("*/*")) { uri ->
+            try {
+                val bank = PcmBank.parse(act.readUri(uri))
+                if (bank.entries.isEmpty()) {
+                    log("CARGAR: ese archivo no parece un banco ADPCM de MUCOM88")
+                } else {
+                    pcm = bank
+                    refreshPcmUi()
+                    log("Banco cargado: ${bank.entries.size} muestras")
+                }
+            } catch (e: Exception) {
+                log("CARGAR: ${e.message}")
+            }
+        }
+    }
+
+    private fun saveBank() {
+        val act = context as? MainActivity ?: return
+        val bank = pcm ?: return
+        act.createDocument("mypcm.bin") { uri ->
+            try {
+                val bytes = bank.toBytes()
+                act.writeUri(uri, bytes)
+                log("Guardado: ${bank.entries.size} muestras (${bytes.size} bytes)")
+            } catch (e: Exception) {
+                log("GUARDAR: ${e.message}")
+            }
         }
     }
 

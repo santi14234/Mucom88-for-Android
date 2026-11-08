@@ -1,0 +1,40 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Descargar fuente del editor (opcional)
+        continue-on-error: true
+        run: |
+          mkdir -p app/src/main/assets/fonts
+          curl -fL --retry 3 -o app/src/main/assets/fonts/editor.ttf \
+            https://github.com/adobe-fonts/source-code-pro/raw/release/TTF/SourceCodePro-Regular.ttf || true
+          if [ ! -s app/src/main/assets/fonts/editor.ttf ] || [ "$(stat -c%s app/src/main/assets/fonts/editor.ttf)" -lt 10000 ]; then
+            rm -f app/src/main/assets/fonts/editor.ttf
+            echo "No se pudo bajar la fuente; la app usara la monoespaciada del sistema."
+          fi
+
+      - name: Compilar APK debug
+        run: gradle assembleDebug --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mucom88-for-Android-debug
+          path: app/build/outputs/apk/debug/*.apk
