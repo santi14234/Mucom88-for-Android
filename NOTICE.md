@@ -23,5 +23,6 @@ Se usa como banco ADPCM por defecto (canal K).
 
 ## Fuente del editor
 
-Si el workflow logra descargarla, la app usa **Source Code Pro** (Adobe, licencia SIL OFL 1.1)
-desde https://github.com/adobe-fonts/source-code-pro. Si no, usa la monoespaciada del sistema.
+`app/src/main/assets/fonts/editor.ttf` es **DejaVu Sans Mono** (Bitstream Vera / DejaVu, licencia libre
+que permite redistribuirla; ver https://dejavu-fonts.github.io/License.html).
+Para usar otra fuente, reemplaza ese archivo por otro .ttf con el mismo nombre.

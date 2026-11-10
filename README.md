@@ -20,8 +20,7 @@ Cada `push` a `main` ejecuta GitHub Actions. El APK queda en Actions > último r
 
 ## Fuente del editor
 
-El workflow baja la fuente a `app/src/main/assets/fonts/editor.ttf` antes de compilar.
-Para usar otra fuente, cambia la URL en `.github/workflows/build.yml` o sube tu propio `editor.ttf` a esa carpeta.
+Viene incluida en `app/src/main/assets/fonts/editor.ttf` (DejaVu Sans Mono). Para cambiarla, reemplaza ese archivo por otro .ttf con el mismo nombre.
 
 ## Resaltado MML
 

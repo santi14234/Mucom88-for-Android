@@ -6,13 +6,17 @@ import android.graphics.Typeface
 object Fonts {
     var mono: Typeface = Typeface.MONOSPACE
         private set
+    var loaded: Boolean = false
+        private set
 
-    // Busca assets/fonts/editor.ttf; si existe la usa, sino usa la monoespaciada del sistema.
+    // Usa assets/fonts/editor.ttf (DejaVu Sans Mono). Si falla, la monoespaciada del sistema.
     fun init(ctx: Context) {
-        mono = try {
-            Typeface.createFromAsset(ctx.assets, "fonts/editor.ttf")
+        try {
+            mono = Typeface.createFromAsset(ctx.assets, "fonts/editor.ttf")
+            loaded = true
         } catch (e: Exception) {
-            Typeface.MONOSPACE
+            mono = Typeface.MONOSPACE
+            loaded = false
         }
     }
 }

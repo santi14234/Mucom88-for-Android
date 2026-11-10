@@ -14,11 +14,14 @@ class MainActivity : AppCompatActivity() {
 
     private var pending: ((Uri) -> Unit)? = null
 
-    fun openDocument(mimes: Array<String>, cb: (Uri) -> Unit) {
+    fun openDocument(mimes: Array<String>, write: Boolean = false, cb: (Uri) -> Unit) {
         val i = Intent(Intent.ACTION_OPEN_DOCUMENT)
         i.addCategory(Intent.CATEGORY_OPENABLE)
         i.type = "*/*"
         i.putExtra(Intent.EXTRA_MIME_TYPES, mimes)
+        if (write) {
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
         pending = cb
         startActivityForResult(i, REQ_FILE)
     }
@@ -50,6 +53,18 @@ class MainActivity : AppCompatActivity() {
         val out = contentResolver.openOutputStream(uri, "wt")
             ?: throw IllegalStateException("No se pudo guardar el archivo")
         out.use { it.write(bytes) }
+    }
+
+    fun fileName(uri: Uri): String {
+        var name = "banco.bin"
+        try {
+            contentResolver.query(uri, null, null, null, null)?.use { c ->
+                val idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0 && c.moveToFirst()) name = c.getString(idx)
+            }
+        } catch (e: Exception) {
+        }
+        return name
     }
 
     fun displayName(uri: Uri): String {

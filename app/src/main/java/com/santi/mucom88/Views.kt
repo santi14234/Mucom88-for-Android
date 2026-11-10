@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
+import android.view.MotionEvent
 import android.view.View
 import kotlin.math.max
 import kotlin.math.min
@@ -247,5 +248,44 @@ class PianoRowsView(ctx: Context) : View(ctx) {
                 }
             }
         }
+    }
+}
+
+// Barra arrastrable para cambiar el tamaño del panel (CONSOLA / MONITOR / TECLADO / ADPCM).
+class Splitter(ctx: Context, private val onDrag: (Float) -> Unit) : View(ctx) {
+    var vertical = false
+    private var last = 0f
+    private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF7A7A86.toInt() }
+
+    override fun onDraw(canvas: Canvas) {
+        val r = context.dpf(2.2f)
+        val gap = context.dpf(8f)
+        val cx = width / 2f
+        val cy = height / 2f
+        for (i in -1..1) {
+            if (vertical) canvas.drawCircle(cx, cy + i * gap, r, dot)
+            else canvas.drawCircle(cx + i * gap, cy, r, dot)
+        }
+    }
+
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                last = if (vertical) e.rawX else e.rawY
+                parent.requestDisallowInterceptTouchEvent(true)
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val cur = if (vertical) e.rawX else e.rawY
+                onDrag(cur - last)
+                last = cur
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                parent.requestDisallowInterceptTouchEvent(false)
+                return true
+            }
+        }
+        return super.onTouchEvent(e)
     }
 }

@@ -9,6 +9,7 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.Gravity
+import android.net.Uri
 import android.view.View
 import android.text.InputFilter
 import android.widget.RadioButton
@@ -38,6 +39,12 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
     private val leftCol = LinearLayout(ctx)
     private val panel = LinearLayout(ctx)
     private var landscape = false
+    private val prefs = ctx.getSharedPreferences("ui", Context.MODE_PRIVATE)
+    private var fracPortrait = prefs.getFloat("fracP", 0.40f)
+    private var fracLand = prefs.getFloat("fracL", 0.42f)
+    private val splitter = Splitter(ctx) { d -> onSplit(d) }
+    private var bankUri: Uri? = null
+    private var bankName = "mucompcm.bin (incluido)"
     private val views = ArrayList<View>()
 
     private val chanRegex = Regex("^[A-K]+(?=\\s)")
@@ -117,7 +124,7 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         console.textSize = 11f
         console.setTextColor(C.TEXT)
         console.setPadding(context.dp(8), context.dp(4), context.dp(8), context.dp(4))
-        console.text = "MUCOM88 para Android v0.2 (Día 2)\nConversor de muestras WAV listo. Chip FM y compilador: Días 3 y 4\n"
+        console.text = "MUCOM88 para Android v0.2 (Día 2)\nFuente: " + (if (Fonts.loaded) "DejaVu Sans Mono (incluida)" else "del sistema (no se pudo cargar editor.ttf)") + "\nConversor de muestras WAV listo. Chip FM y compilador: Días 3 y 4\n"
         loadDefaultPcm()
         consoleScroll.addView(console)
 
@@ -137,8 +144,10 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         val body = FrameLayout(context)
         views.forEach { body.addView(it, FrameLayout.LayoutParams(MATCH, MATCH)) }
         panel.addView(body, LinearLayout.LayoutParams(MATCH, 0, 1f))
-        addView(leftCol, LinearLayout.LayoutParams(MATCH, 0, 3f))
-        addView(panel, LinearLayout.LayoutParams(MATCH, 0, 2f))
+        addView(leftCol, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        addView(splitter, LinearLayout.LayoutParams(MATCH, context.dp(16)))
+        addView(panel, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        applyOrientation()
 
         showTab(0)
     }
@@ -154,19 +163,37 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
 
     private fun applyOrientation() {
         val pad = context.dp(8)
+        val bar = context.dp(16)
+        val frac = if (landscape) fracLand else fracPortrait
+        splitter.vertical = landscape
         if (landscape) {
             orientation = LinearLayout.HORIZONTAL
             setPadding(pad, pad, pad, pad)
-            leftCol.layoutParams = LinearLayout.LayoutParams(0, MATCH, 1.3f)
-            val lp = LinearLayout.LayoutParams(0, MATCH, 1f)
-            lp.leftMargin = pad
-            panel.layoutParams = lp
+            leftCol.layoutParams = LinearLayout.LayoutParams(0, MATCH, 1f - frac)
+            splitter.layoutParams = LinearLayout.LayoutParams(bar, MATCH)
+            panel.layoutParams = LinearLayout.LayoutParams(0, MATCH, frac)
         } else {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad, pad, 0)
-            leftCol.layoutParams = LinearLayout.LayoutParams(MATCH, 0, 3f)
-            panel.layoutParams = LinearLayout.LayoutParams(MATCH, 0, 2f)
+            leftCol.layoutParams = LinearLayout.LayoutParams(MATCH, 0, 1f - frac)
+            splitter.layoutParams = LinearLayout.LayoutParams(MATCH, bar)
+            panel.layoutParams = LinearLayout.LayoutParams(MATCH, 0, frac)
         }
+        splitter.invalidate()
+    }
+
+    // Arrastrar la barra: delta > 0 = el panel se hace más pequeño.
+    private fun onSplit(delta: Float) {
+        val a = if (landscape) leftCol.width else leftCol.height
+        val b = if (landscape) panel.width else panel.height
+        val total = (a + b).toFloat()
+        if (total <= 0f) return
+        val f = ((b - delta) / total).coerceIn(0.2f, 0.75f)
+        if (landscape) fracLand = f else fracPortrait = f
+        (leftCol.layoutParams as LinearLayout.LayoutParams).weight = 1f - f
+        (panel.layoutParams as LinearLayout.LayoutParams).weight = f
+        requestLayout()
+        prefs.edit().putFloat(if (landscape) "fracL" else "fracP", f).apply()
     }
 
     private fun loadDefaultPcm() {
@@ -185,13 +212,20 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
 
         val row = LinearLayout(context)
         row.orientation = LinearLayout.HORIZONTAL
+        val saveBtn = context.pillButton("GUARDAR", C.ORANGE) { saveBank(false) }
+        saveBtn.setOnLongClickListener {
+            saveBank(true)
+            true
+        }
         val bs = listOf(
+            context.pillButton("NEW +", C.GREEN) { newBank() },
             context.pillButton("+ WAV", C.ORANGE) { addWav() },
             context.pillButton("CARGAR", C.ORANGE) { loadBank() },
-            context.pillButton("GUARDAR", C.ORANGE) { saveBank() }
+            saveBtn
         )
         for (b in bs) {
-            b.setPadding(context.dp(4), context.dp(7), context.dp(4), context.dp(7))
+            b.textSize = 11f
+            b.setPadding(context.dp(2), context.dp(7), context.dp(2), context.dp(7))
             val lp = LinearLayout.LayoutParams(0, WRAP, 1f)
             lp.setMargins(context.dp(3), context.dp(3), context.dp(3), context.dp(3))
             row.addView(b, lp)
@@ -249,7 +283,7 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
             }
             pcmList.addView(row, LinearLayout.LayoutParams(MATCH, WRAP))
         }
-        pcmInfo.text = "${bank.entries.size}/${PcmBank.MAX_ENTRIES} muestras · memoria ${bank.usedBytes() / 1024} KB de 256 KB"
+        pcmInfo.text = "$bankName\n${bank.entries.size}/${PcmBank.MAX_ENTRIES} muestras · memoria ${bank.usedBytes() / 1024} KB de 256 KB"
     }
 
     private fun addWav() {
@@ -346,15 +380,18 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
 
     private fun loadBank() {
         val act = context as? MainActivity ?: return
-        act.openDocument(arrayOf("*/*")) { uri ->
+        act.openDocument(arrayOf("*/*"), true) { uri ->
             try {
-                val bank = PcmBank.parse(act.readUri(uri))
-                if (bank.entries.isEmpty()) {
+                val bytes = act.readUri(uri)
+                val bank = PcmBank.parse(bytes)
+                if (bank.entries.isEmpty() && bytes.size < PcmBank.HEADER) {
                     log("CARGAR: ese archivo no parece un banco ADPCM de MUCOM88")
                 } else {
                     pcm = bank
+                    bankUri = uri
+                    bankName = act.fileName(uri)
                     refreshPcmUi()
-                    log("Banco cargado: ${bank.entries.size} muestras")
+                    log("Banco cargado: $bankName (${bank.entries.size} muestras)")
                 }
             } catch (e: Exception) {
                 log("CARGAR: ${e.message}")
@@ -362,14 +399,57 @@ class EditorPage(ctx: Context) : LinearLayout(ctx) {
         }
     }
 
-    private fun saveBank() {
+    // NEW +: elige vacío o con las 16 de mucompcm.bin, y luego el explorador pide nombre y carpeta.
+    private fun newBank() {
+        AlertDialog.Builder(context)
+            .setTitle("Nuevo banco de muestras")
+            .setItems(arrayOf("Vacío", "Con las 16 de mucompcm.bin")) { _, which ->
+                chooseNewFile(which == 1)
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun chooseNewFile(withDefault: Boolean) {
+        val act = context as? MainActivity ?: return
+        act.createDocument("mi_banco.bin") { uri ->
+            try {
+                val bank = if (withDefault) PcmBank.loadDefault(context) else PcmBank(ArrayList())
+                act.writeUri(uri, bank.toBytes())
+                pcm = bank
+                bankUri = uri
+                bankName = act.fileName(uri)
+                refreshPcmUi()
+                log("Banco nuevo: $bankName (${bank.entries.size} muestras). Usa + WAV para añadir.")
+            } catch (e: Exception) {
+                log("NEW +: ${e.message}")
+            }
+        }
+    }
+
+    // GUARDAR: sobrescribe el archivo del banco; si no hay, o con pulsación larga, abre el explorador.
+    private fun saveBank(saveAs: Boolean) {
         val act = context as? MainActivity ?: return
         val bank = pcm ?: return
-        act.createDocument("mypcm.bin") { uri ->
+        val uri = bankUri
+        if (uri != null && !saveAs) {
             try {
                 val bytes = bank.toBytes()
                 act.writeUri(uri, bytes)
-                log("Guardado: ${bank.entries.size} muestras (${bytes.size} bytes)")
+                log("Guardado en $bankName (${bank.entries.size} muestras, ${bytes.size} bytes)")
+                return
+            } catch (e: Exception) {
+                log("No se pudo sobrescribir $bankName; elige dónde guardar")
+            }
+        }
+        act.createDocument(if (bankUri != null) bankName else "mi_banco.bin") { newUri ->
+            try {
+                val bytes = bank.toBytes()
+                act.writeUri(newUri, bytes)
+                bankUri = newUri
+                bankName = act.fileName(newUri)
+                refreshPcmUi()
+                log("Guardado como $bankName (${bank.entries.size} muestras, ${bytes.size} bytes)")
             } catch (e: Exception) {
                 log("GUARDAR: ${e.message}")
             }
